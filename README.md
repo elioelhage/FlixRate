@@ -2,18 +2,15 @@
 
 IMDb episode ratings, directly in Netflix.
 
-## Version 1.4
+## Version 1.5
 
-- Reads the current show, season, and episode from Netflix's playback title.
-- Fetches the individual episode through OMDb using season/episode queries.
-- If a direct title lookup fails, resolves the show's IMDb ID first and retries the episode lookup by IMDb ID.
-- Successful ratings are cached for 7 days.
-- Failed lookups are cached for only 2 minutes, preventing stale white-star results while troubleshooting.
-- The star remains white when there are fewer than 400 IMDb votes or no usable rating data.
-- Netflix playback integration continues to use the native volume-control area.
+- Detects the current Netflix show, season, and episode.
+- Looks up the exact episode through OMDb using season/episode data.
+- Uses an IMDb-ID fallback when direct title matching fails.
+- Shows the rating as the FlixRate color star directly in the extension popup for testing.
+- Successful ratings are cached for 7 days; failed lookups expire after 2 minutes.
+- The in-player star is temporarily disabled while the rating pipeline is being tested.
 
 ## Setup
 
-See `SETUP.md` and create a local `config.js` from `config.example.js` with your OMDb API key.
-
-`config.js` is gitignored and is never committed to the public repository.
+Create `config.js` from `config.example.js` and put your OMDb API key in it. `config.js` is gitignored.
