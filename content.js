@@ -1,53 +1,108 @@
 (() => {
   const DEBUG = true;
-  const STORAGE_KEY = 'flixrateCurrentEpisode';
+  const DETECTION_INTERVAL_MS = 1000;
+  const PUBLISH_MIN_MS = 500;
   let lastSignature = '';
+  let lastPublish = 0;
 
   function log(...args) {
-    if (DEBUG) console.debug('[FlixRate 1.51]', ...args);
+    if (DEBUG) console.debug('[FlixRate 1.52]', ...args);
   }
 
   function clean(text) {
-    return String(text || '').replace(/\s+/g, ' ').trim();
+    return String(text || '').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
   }
 
-  function parseNumbering(text) {
+  function parseEpisodeNumber(text) {
     const value = clean(text);
     const patterns = [
       /\bS(?:eason\s*)?(\d{1,3})\s*[:\-]\s*E(?:pisode\s*)?(\d{1,3})\b/i,
       /\bS(?:eason\s*)?(\d{1,3})\s+E(?:pisode\s*)?(\d{1,3})\b/i,
       /\bSeason\s*(\d{1,3})\s*[,\-:]?\s*Episode\s*(\d{1,3})\b/i,
+      /\bEpisode\s*(\d{1,3})\s*(?:of|\/|-)\s*Season\s*(\d{1,3})\b/i,
     ];
     for (const pattern of patterns) {
-      const match = value.match(pattern);
-      if (match) return { season: Number(match[1]), episode: Number(match[2]), index: match.index ?? 0 };
+      const m = value.match(pattern);
+      if (!m) continue;
+      if (/^Episode/i.test(m[0])) {
+        return { episode: Number(m[1]), season: Number(m[2]), index: m.index ?? 0, length: m[0].length };
+      }
+      return { season: Number(m[1]), episode: Number(m[2]), index: m.index ?? 0, length: m[0].length };
     }
     return null;
   }
 
-  function nearbyTitle(node) {
-    let current = node;
-    for (let depth = 0; current && depth < 6; depth += 1, current = current.parentElement) {
-      const headings = Array.from(current.querySelectorAll?.('h1,h2,h3,h4,[role="heading"]') || []);
-      const heading = headings.find((el) => {
-        const text = clean(el.textContent);
-        return text && !parseNumbering(text) && text.length < 140;
-      });
-      if (heading) return clean(heading.textContent);
+  function isUsableTitle(value) {
+    const text = clean(value);
+    if (!text || text.length < 2 || text.length > 160) return false;
+    if (parseEpisodeNumber(text)) return false;
+    if (/^(play|pause|volume|mute|unmute|fullscreen|exit fullscreen|next episode|previous episode|skip intro|skip recap|audio|subtitles|settings)$/i.test(text)) return false;
+    return true;
+  }
 
-      const aria = clean(current.getAttribute?.('aria-label'));
-      if (aria && !parseNumbering(aria) && aria.length < 140 && !/volume|play|pause|fullscreen|subtitle/i.test(aria)) {
-        return aria;
-      }
+  function titleFromDocumentTitle() {
+    const candidates = [
+      document.querySelector('meta[property="og:title"]')?.getAttribute('content'),
+      document.title,
+    ].map(clean).filter(Boolean);
+
+    for (let title of candidates) {
+      title = title
+        .replace(/^Watch\s+/i, '')
+        .replace(/\s*[|\-–—]\s*(?:Netflix|Watch on Netflix).*$/i, '')
+        .replace(/\s*-\s*Netflix$/i, '')
+        .trim();
+      if (isUsableTitle(title)) return title;
     }
     return '';
   }
 
-  function fromTitleNodes() {
+  function fromJsonLd() {
+    for (const script of document.querySelectorAll('script[type="application/ld+json"]')) {
+      let parsed;
+      try { parsed = JSON.parse(script.textContent || ''); } catch { continue; }
+      const stack = Array.isArray(parsed) ? [...parsed] : [parsed];
+      while (stack.length) {
+        const item = stack.pop();
+        if (!item || typeof item !== 'object') continue;
+        if (Array.isArray(item)) { stack.push(...item); continue; }
+        if (item['@graph'] && Array.isArray(item['@graph'])) stack.push(...item['@graph']);
+
+        const types = Array.isArray(item['@type']) ? item['@type'] : [item['@type']];
+        const typeText = types.filter(Boolean).join(' ');
+        const seasonValue = item.partOfSeason?.seasonNumber ?? item.seasonNumber;
+        const episodeValue = item.episodeNumber;
+        const season = Number.parseInt(seasonValue, 10);
+        const episode = Number.parseInt(episodeValue, 10);
+        const seriesName = clean(item.partOfSeries?.name || item.series?.name || item.parentSeries?.name || item.partOfSeries || '');
+        if ((/Episode/i.test(typeText) || episodeValue != null) && Number.isFinite(season) && Number.isFinite(episode) && isUsableTitle(seriesName)) {
+          return { title: seriesName, season, episode, source: 'json-ld' };
+        }
+      }
+    }
+    return null;
+  }
+
+  function titleFromNodeContext(node) {
+    let current = node;
+    for (let depth = 0; current && depth < 6; depth += 1, current = current.parentElement) {
+      const headings = Array.from(current.querySelectorAll?.('h1,h2,h3,h4,[role="heading"]') || []);
+      for (const heading of headings) {
+        const text = clean(heading.textContent);
+        if (isUsableTitle(text)) return text;
+      }
+      const labelled = clean(current.getAttribute?.('aria-label'));
+      if (isUsableTitle(labelled)) return labelled;
+    }
+    return '';
+  }
+
+  function fromExplicitTitleNodes() {
     const selectors = [
       '[data-uia="video-title"]',
       '[data-uia*="video-title"]',
       '[data-uia="player-title"]',
+      '[data-uia*="player-title"]',
       '[class*="video-title"]',
       '[class*="PlayerControlsNeo__episode"]',
     ];
@@ -55,75 +110,130 @@
     for (const selector of selectors) {
       for (const node of document.querySelectorAll(selector)) {
         const raw = node.innerText || node.textContent || node.getAttribute('aria-label') || '';
-        const numbering = parseNumbering(raw);
+        const numbering = parseEpisodeNumber(raw);
         if (!numbering) continue;
-
         const lines = String(raw).split(/\n+/).map(clean).filter(Boolean);
-        const title = nearbyTitle(node) || lines.find((line) => !parseNumbering(line)) || clean(String(raw).slice(0, numbering.index));
-        if (title) return { title, season: numbering.season, episode: numbering.episode, source: selector };
+        const title = titleFromNodeContext(node)
+          || lines.find((line) => isUsableTitle(line))
+          || clean(String(raw).slice(0, numbering.index));
+        if (isUsableTitle(title)) {
+          return { title, season: numbering.season, episode: numbering.episode, source: selector };
+        }
       }
     }
     return null;
   }
 
-  function fromPlayerNeighborhood() {
-    const video = document.querySelector('video');
-    if (!video) return null;
+  function fromVisibleText() {
+    const bodyLines = clean(document.body?.innerText).split(/\n+/).map(clean).filter(Boolean);
+    const candidates = [];
 
-    let current = video;
-    for (let depth = 0; current && depth < 7; depth += 1, current = current.parentElement) {
-      const candidates = current.querySelectorAll('h1,h2,h3,h4,span,div,button,[aria-label]');
-      for (const node of candidates) {
-        if (node.children.length > 5) continue;
-        const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label'));
-        if (text.length < 3 || text.length > 180) continue;
-        const numbering = parseNumbering(text);
-        if (!numbering) continue;
-        const title = nearbyTitle(node) || clean(text.slice(0, numbering.index));
-        if (title) return { title, season: numbering.season, episode: numbering.episode, source: 'player-neighborhood' };
-      }
-    }
-    return null;
-  }
-
-  function fromCompactVisibleText() {
-    const nodes = document.querySelectorAll('h1,h2,h3,h4,span,button,div');
-    let best = null;
-    for (const node of nodes) {
-      if (!(node instanceof HTMLElement) || node.children.length > 4) continue;
-      const text = clean(node.innerText || node.textContent);
-      if (text.length < 4 || text.length > 180) continue;
-      const numbering = parseNumbering(text);
+    for (let i = 0; i < bodyLines.length; i += 1) {
+      const line = bodyLines[i];
+      const numbering = parseEpisodeNumber(line);
       if (!numbering) continue;
-      const title = nearbyTitle(node) || clean(text.slice(0, numbering.index));
-      if (!title) continue;
-      const playerDistance = node.closest('[data-uia*="player"], [class*="Player"], [class*="player"]') ? 0 : 1;
-      const score = playerDistance * 1000 + text.length;
-      if (!best || score < best.score) best = { title, season: numbering.season, episode: numbering.episode, source: 'compact-visible-text', score };
+
+      let title = clean(line.slice(0, numbering.index));
+      if (!isUsableTitle(title)) {
+        for (let offset = 1; offset <= 4 && i - offset >= 0; offset += 1) {
+          const previous = bodyLines[i - offset];
+          if (isUsableTitle(previous) && previous.length <= 100) {
+            title = previous;
+            break;
+          }
+        }
+      }
+
+      if (!isUsableTitle(title)) title = titleFromDocumentTitle();
+      if (!isUsableTitle(title)) continue;
+
+      const contextScore = i < 120 ? 0 : 20;
+      const netflixUiPenalty = /^(Home|TV Shows|Movies|My List|New & Popular|Browse)$/i.test(title) ? 50 : 0;
+      candidates.push({
+        title,
+        season: numbering.season,
+        episode: numbering.episode,
+        source: 'body-text',
+        score: contextScore + netflixUiPenalty + Math.min(line.length, 120),
+      });
     }
-    if (best) delete best.score;
+
+    candidates.sort((a, b) => a.score - b.score);
+    if (!candidates.length) return null;
+    const best = candidates[0];
+    delete best.score;
+    return best;
+  }
+
+  function fromElementTree() {
+    const elements = document.querySelectorAll('h1,h2,h3,h4,span,button,div,p');
+    const candidates = [];
+
+    for (const node of elements) {
+      if (!(node instanceof HTMLElement)) continue;
+      if (node.children.length > 8) continue;
+      const text = clean(node.innerText || node.textContent || node.getAttribute('aria-label'));
+      if (text.length < 4 || text.length > 180) continue;
+      const numbering = parseEpisodeNumber(text);
+      if (!numbering) continue;
+
+      let title = titleFromNodeContext(node) || clean(text.slice(0, numbering.index));
+      if (!isUsableTitle(title)) title = titleFromDocumentTitle();
+      if (!isUsableTitle(title)) continue;
+
+      const rect = node.getBoundingClientRect();
+      const visible = rect.width > 0 && rect.height > 0;
+      if (!visible) continue;
+
+      const nearPlayer = !!node.closest('[data-uia*="player"], [class*="Player"], [class*="player"], video');
+      candidates.push({
+        title,
+        season: numbering.season,
+        episode: numbering.episode,
+        source: nearPlayer ? 'player-dom' : 'dom-scan',
+        score: (nearPlayer ? 0 : 1000) + text.length,
+      });
+    }
+
+    candidates.sort((a, b) => a.score - b.score);
+    if (!candidates.length) return null;
+    const best = candidates[0];
+    delete best.score;
     return best;
   }
 
   function detectCurrentEpisode() {
-    return fromTitleNodes() || fromPlayerNeighborhood() || fromCompactVisibleText();
+    return fromJsonLd() || fromExplicitTitleNodes() || fromElementTree() || fromVisibleText();
   }
 
   async function publish() {
     const episode = detectCurrentEpisode();
-    const payload = episode ? { ...episode, detectedAt: Date.now() } : null;
-    const signature = JSON.stringify(payload && {
-      title: payload.title, season: payload.season, episode: payload.episode, source: payload.source,
+    const signature = JSON.stringify(episode && {
+      title: episode.title,
+      season: episode.season,
+      episode: episode.episode,
     });
-    if (signature === lastSignature) return;
+
+    if (signature === lastSignature && Date.now() - lastPublish < PUBLISH_MIN_MS) return;
     lastSignature = signature;
-    await chrome.storage.local.set({ [STORAGE_KEY]: payload });
-    if (payload) log('Detected', payload);
+    lastPublish = Date.now();
+
+    try {
+      await chrome.runtime.sendMessage({
+        type: 'FLIXRATE_EPISODE_DETECTED',
+        payload: episode ? { ...episode, url: location.href, detectedAt: Date.now() } : null,
+      });
+      if (episode) log('Current episode detected:', episode);
+    } catch (error) {
+      log('Could not publish detected episode:', error);
+    }
   }
 
-  publish().catch((e) => log('initial detection error', e));
-  window.setInterval(() => publish().catch((e) => log('detection error', e)), 750);
-  new MutationObserver(() => publish().catch((e) => log('mutation detection error', e))).observe(document.documentElement, {
-    childList: true, subtree: true, characterData: true,
+  publish();
+  window.setInterval(() => publish(), DETECTION_INTERVAL_MS);
+  new MutationObserver(() => publish()).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    characterData: true,
   });
 })();
