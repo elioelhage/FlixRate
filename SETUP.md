@@ -13,11 +13,14 @@
 2. Enable Developer mode.
 3. Click **Load unpacked** and select the FlixRate folder.
 4. Reload Netflix and start an episode.
+5. Open the FlixRate popup. It should detect the current show, season, and episode, then fetch the specific episode rating.
 
-## v1.4 troubleshooting
+## v1.5 troubleshooting
 
-If the star is white on an episode that should have enough IMDb votes, open the Netflix DevTools console. FlixRate logs the title it parsed and the response it received with the `[FlixRate]` prefix.
+If the popup says it cannot reach Netflix, reload the Netflix tab once after updating the extension.
 
-Also open the FlixRate service-worker console from `chrome://extensions`. A missing/invalid OMDb key, HTTP error, or OMDb title mismatch will be shown there.
+If the popup detects the episode but shows `Missing OMDb API key`, make sure your local `config.js` exists beside `background.js`.
 
-v1.4 deliberately does not cache failed lookups for days. A failed lookup expires after about 2 minutes so temporary API or title problems can recover without clearing extension storage.
+If the popup detects the wrong show or episode, open the Netflix DevTools console and look for `[FlixRate] Current episode detected:`. The parsed title/season/episode is shown there.
+
+A successful result shows the numeric IMDb rating and vote count for testing, while the large FlixRate star uses only the configured color tier.
