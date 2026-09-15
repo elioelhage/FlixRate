@@ -11,7 +11,7 @@
   align-items: center !important;
   justify-content: center !important;
   box-sizing: border-box !important;
-  background: #fff !important;
+  background: var(--flixrate-color, #fff) !important;
   color: #111 !important;
   cursor: pointer !important;
   opacity: 0.9;
@@ -19,6 +19,14 @@
   -webkit-appearance: none !important;
   flex: 0 0 auto !important;
   z-index: 10 !important;
+  transition: background 0.25s ease !important;
+}
+
+#flixrate-star[data-rating-state='dark-green'],
+#flixrate-star[data-rating-state='purple'],
+#flixrate-star[data-rating-state='maroon'],
+#flixrate-star[data-rating-state='red'] {
+  color: #fff !important;
 }
 
 #flixrate-star svg {
