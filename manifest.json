@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "FlixRate",
+  "version": "0.1.0",
+  "description": "See IMDb episode ratings directly in Netflix playback controls.",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.netflix.com/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "FlixRate"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.netflix.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "128": "icons/icon128.png"
+  }
+}
