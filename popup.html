@@ -28,8 +28,22 @@
       </button>
     </section>
 
-    <footer>Version 1.1</footer>
+    <section class="legend">
+      <h2>Rating guide</h2>
+      <p class="legend-intro">The star next to the volume control changes color to match the episode you're watching.</p>
+      <ul id="legendList" class="legend-list"></ul>
+      <div class="legend-item legend-item--unrated">
+        <span class="swatch swatch--unrated"></span>
+        <div class="legend-copy">
+          <span class="legend-label">Not enough ratings</span>
+          <span class="legend-range">Fewer than 400 IMDb votes, or no data found</span>
+        </div>
+      </div>
+    </section>
+
+    <footer>Version 1.4 · Ratings via OMDb</footer>
   </main>
+  <script src="ratings.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>
