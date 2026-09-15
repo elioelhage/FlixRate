@@ -28,20 +28,30 @@
       </button>
     </section>
 
-    <section class="legend">
-      <h2>Rating guide</h2>
-      <p class="legend-intro">The star next to the volume control changes color to match the episode you're watching.</p>
-      <ul id="legendList" class="legend-list"></ul>
-      <div class="legend-item legend-item--unrated">
-        <span class="swatch swatch--unrated"></span>
-        <div class="legend-copy">
-          <span class="legend-label">Not enough ratings</span>
-          <span class="legend-range">Fewer than 400 IMDb votes, or no data found</span>
+    <section class="episode-card">
+      <div class="episode-heading">
+        <span class="section-label">CURRENT EPISODE</span>
+        <button id="refresh" class="refresh" type="button">Refresh</button>
+      </div>
+      <div id="episodeTitle" class="episode-title">Waiting for Netflix…</div>
+      <div id="episodeMeta" class="episode-meta">Open an episode on Netflix.</div>
+
+      <div id="ratingWrap" class="rating-wrap" hidden>
+        <div id="ratingStar" class="rating-star" aria-label="FlixRate rating state">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 2.6l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.16l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93L12 2.6z"/>
+          </svg>
+        </div>
+        <div>
+          <div id="ratingLabel" class="rating-label">Loading…</div>
+          <div id="ratingDetails" class="rating-details"></div>
         </div>
       </div>
+
+      <div id="errorText" class="error-text" hidden></div>
     </section>
 
-    <footer>Version 1.4 · Ratings via OMDb</footer>
+    <footer>Version 1.5</footer>
   </main>
   <script src="ratings.js"></script>
   <script src="popup.js"></script>
