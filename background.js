@@ -1,4 +1,4 @@
-// FlixRate v1.5 — reliable per-episode IMDb lookup through OMDb.
+// FlixRate v1.51 — reliable per-episode IMDb lookup through OMDb.
 var omdbKey = '';
 try {
   importScripts('config.js');
