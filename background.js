@@ -42,9 +42,7 @@ function noRating(error) {
 }
 
 function parseEpisodeResult(json) {
-  if (!json || json.Response !== 'True') {
-    return noRating(json?.Error || 'OMDb returned no result');
-  }
+  if (!json || json.Response !== 'True') return noRating(json?.Error || 'OMDb returned no result');
 
   const rating = json.imdbRating && json.imdbRating !== 'N/A'
     ? Number.parseFloat(json.imdbRating)
@@ -64,10 +62,8 @@ function parseEpisodeResult(json) {
 async function omdb(params) {
   const url = new URL(OMDB_ENDPOINT);
   url.search = new URLSearchParams({ apikey: omdbKey, r: 'json', ...params }).toString();
-
   const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
   if (!response.ok) throw new Error(`OMDb HTTP ${response.status}`);
-
   const json = await response.json();
   if (json.Response === 'False') throw new Error(json.Error || 'OMDb request failed');
   return json;
@@ -96,13 +92,8 @@ async function fetchRating({ title, season, episode }) {
 
   let lastError = null;
 
-  // Primary path: direct title + season + episode query.
   try {
-    const json = await omdb({
-      t: title,
-      Season: String(season),
-      Episode: String(episode),
-    });
+    const json = await omdb({ t: title, Season: String(season), Episode: String(episode) });
     const result = parseEpisodeResult(json);
     if (result.rating != null || result.imdbID != null) {
       await setCached(key, result, true);
@@ -113,15 +104,10 @@ async function fetchRating({ title, season, episode }) {
     lastError = error;
   }
 
-  // Fallback path: resolve the exact series IMDb ID, then query by ID.
   try {
     const imdbID = await findSeriesId(title);
     if (imdbID) {
-      const json = await omdb({
-        i: imdbID,
-        Season: String(season),
-        Episode: String(episode),
-      });
+      const json = await omdb({ i: imdbID, Season: String(season), Episode: String(episode) });
       const result = parseEpisodeResult(json);
       if (result.rating != null || result.imdbID != null) {
         await setCached(key, result, true);
@@ -134,17 +120,21 @@ async function fetchRating({ title, season, episode }) {
   }
 
   const result = noRating(lastError?.message || 'Episode not found');
-  // Do NOT keep failures for days. This is important while titles/API responses change.
+  // Failed lookups expire quickly so a temporary API/title problem never
+  // becomes a week-long false "white star".
   await setCached(key, result, false);
   return result;
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type !== 'FLIXRATE_FETCH_RATING') return;
+  if (message?.type === 'FLIXRATE_FETCH_RATING') {
+    fetchRating(message.payload || {})
+      .then(sendResponse)
+      .catch((error) => sendResponse(noRating(String(error))));
+    return true;
+  }
 
-  fetchRating(message.payload || {})
-    .then(sendResponse)
-    .catch((error) => sendResponse(noRating(String(error))));
-
-  return true;
+  if (message?.type === 'FLIXRATE_OPEN_POPUP' && chrome.action?.openPopup) {
+    chrome.action.openPopup().catch(() => {});
+  }
 });
