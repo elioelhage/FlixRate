@@ -1,16 +1,12 @@
-// FlixRate v1.51 — reliable per-episode IMDb lookup through OMDb.
-var omdbKey = '';
-try {
-  importScripts('config.js');
-  omdbKey = typeof OMDB_API_KEY === 'string' ? OMDB_API_KEY : '';
-} catch (error) {
-  console.warn('[FlixRate] config.js not found. Add your OMDb key from config.example.js.');
-}
+// FlixRate 1.52 background service worker.
+// config.js contains the local OMDb key and is intentionally gitignored.
+importScripts('config.js');
 
 const OMDB_ENDPOINT = 'https://www.omdbapi.com/';
 const SUCCESS_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const FAILURE_CACHE_TTL_MS = 2 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 8000;
+const EPISODE_STALE_MS = 15 * 60 * 1000;
 
 function normalizeTitle(title) {
   return String(title || '')
@@ -24,6 +20,10 @@ function normalizeTitle(title) {
 
 function cacheKeyFor({ title, season, episode }) {
   return `flixrate:${normalizeTitle(title)}:${season ?? 'none'}:${episode ?? 'none'}`;
+}
+
+function tabEpisodeKey(tabId) {
+  return `flixrate:tab:${tabId}`;
 }
 
 async function getCached(key) {
@@ -40,27 +40,17 @@ async function setCached(key, data, ok) {
 }
 
 function noRating(error, extra = {}) {
-  return {
-    rating: null,
-    votes: 0,
-    imdbID: null,
-    error: error || 'No rating data',
-    ...extra,
-  };
+  return { rating: null, votes: 0, imdbID: null, error: error || 'No rating data', ...extra };
 }
 
 function parseEpisodeResult(json, extra = {}) {
   if (!json || json.Response !== 'True') {
     return noRating(json?.Error || 'OMDb returned no result', extra);
   }
-
-  const rating = json.imdbRating && json.imdbRating !== 'N/A'
-    ? Number.parseFloat(json.imdbRating)
-    : null;
+  const rating = json.imdbRating && json.imdbRating !== 'N/A' ? Number.parseFloat(json.imdbRating) : null;
   const votes = json.imdbVotes && json.imdbVotes !== 'N/A'
     ? Number.parseInt(String(json.imdbVotes).replace(/,/g, ''), 10)
     : 0;
-
   return {
     rating: Number.isFinite(rating) ? rating : null,
     votes: Number.isFinite(votes) ? votes : 0,
@@ -75,17 +65,11 @@ function parseEpisodeResult(json, extra = {}) {
 
 async function omdb(params) {
   const url = new URL(OMDB_ENDPOINT);
-  url.search = new URLSearchParams({ apikey: omdbKey, r: 'json', ...params }).toString();
-
+  url.search = new URLSearchParams({ apikey: OMDB_API_KEY, r: 'json', ...params }).toString();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
   try {
-    const response = await fetch(url.toString(), {
-      method: 'GET',
-      cache: 'no-store',
-      signal: controller.signal,
-    });
+    const response = await fetch(url.toString(), { method: 'GET', cache: 'no-store', signal: controller.signal });
     if (!response.ok) throw new Error(`OMDb HTTP ${response.status}`);
     return await response.json();
   } finally {
@@ -97,7 +81,6 @@ async function findSeriesId(title) {
   const json = await omdb({ s: title, type: 'series', page: '1' });
   const results = Array.isArray(json.Search) ? json.Search : [];
   if (json.Response !== 'True' || !results.length) return null;
-
   const wanted = normalizeTitle(title);
   const exact = results.find((item) => normalizeTitle(item.Title) === wanted);
   return (exact || results[0])?.imdbID || null;
@@ -106,9 +89,7 @@ async function findSeriesId(title) {
 async function fetchRating({ title, season, episode }) {
   if (!title) return noRating('No Netflix title');
   if (season == null || episode == null) return noRating('No season/episode detected');
-  if (!omdbKey || omdbKey === 'YOUR_OMDB_API_KEY_HERE') {
-    return noRating('Missing OMDb API key — check config.js');
-  }
+  if (!OMDB_API_KEY || OMDB_API_KEY === 'YOUR_OMDB_API_KEY_HERE') return noRating('Missing OMDb API key — check config.js');
 
   const key = cacheKeyFor({ title, season, episode });
   const cached = await getCached(key);
@@ -151,9 +132,37 @@ async function fetchRating({ title, season, episode }) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message?.type !== 'FLIXRATE_FETCH_RATING') return;
-  fetchRating(message.payload || {})
-    .then(sendResponse)
-    .catch((error) => sendResponse(noRating(String(error))));
-  return true;
+  const type = message?.type;
+  const tabId = sender.tab?.id;
+
+  if (type === 'FLIXRATE_EPISODE_DETECTED') {
+    if (tabId != null) {
+      chrome.storage.local.set({ [tabEpisodeKey(tabId)]: message.payload || null });
+    }
+    return;
+  }
+
+  if (type === 'FLIXRATE_GET_EPISODE_FOR_TAB') {
+    const requestedTabId = Number(message.tabId);
+    if (!Number.isInteger(requestedTabId)) {
+      sendResponse({ episode: null });
+      return;
+    }
+    chrome.storage.local.get(tabEpisodeKey(requestedTabId)).then((stored) => {
+      const episode = stored[tabEpisodeKey(requestedTabId)] || null;
+      if (!episode || !episode.detectedAt || Date.now() - episode.detectedAt > EPISODE_STALE_MS) {
+        sendResponse({ episode: null });
+        return;
+      }
+      sendResponse({ episode });
+    }).catch((error) => sendResponse({ episode: null, error: String(error) }));
+    return true;
+  }
+
+  if (type === 'FLIXRATE_FETCH_RATING') {
+    fetchRating(message.payload || {})
+      .then(sendResponse)
+      .catch((error) => sendResponse(noRating(String(error))));
+    return true;
+  }
 });
