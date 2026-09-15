@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FlixRate</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <main class="popup">
+    <header class="brand">
+      <div class="logo-wrap" aria-hidden="true">
+        <img src="icons/icon128.png" alt="" class="logo" />
+      </div>
+      <div>
+        <h1>FlixRate</h1>
+        <p>IMDb episode ratings on Netflix</p>
+      </div>
+    </header>
+
+    <section class="status-card">
+      <div>
+        <span class="status-title">FlixRate</span>
+        <span id="statusText" class="status-text">Enabled</span>
+      </div>
+      <button id="toggle" class="toggle" type="button" role="switch" aria-checked="true" aria-label="Toggle FlixRate">
+        <span class="toggle-knob"></span>
+      </button>
+    </section>
+
+    <footer>Shows episode ratings visually while you watch.</footer>
+  </main>
+  <script src="popup.js"></script>
+</body>
+</html>
