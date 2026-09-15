@@ -1,4 +1,4 @@
-# FlixRate 1.51 setup
+# FlixRate 1.52 setup
 
 ## OMDb key
 
@@ -14,14 +14,20 @@
 4. Reload Netflix.
 5. Start an episode and open the FlixRate toolbar popup.
 
-## v1.51 detection test
+## v1.52 detection test
 
-The popup now directly inspects the active Netflix tab with the extension's `scripting` permission. It does not depend on Netflix's URL containing the episode number.
+The episode detector is now independent of a single Netflix selector. It tries, in order:
 
-The detector checks multiple DOM locations for `Sx:Ey` / `Season x Episode y`, then derives the nearby show title. The content script also runs the same style of multi-strategy detection in the background so Netflix SPA changes are continuously observed.
+- JSON-LD episode metadata embedded in the page
+- Netflix player/video-title elements
+- DOM surrounding the active player
+- Visible page text, including `S1:E1`, `S1 E1`, and `Season 1 Episode 1`
+- Document title and nearby headings as show-title fallbacks
 
-If the popup says **Episode not detected**, the Netflix player markup has changed enough that another DOM strategy is needed.
+The content script publishes the detected episode to the background service worker, keyed to the individual Netflix tab. The popup asks the service worker for the episode belonging to the active tab, then performs the rating lookup.
+
+If the popup still says **Episode not detected**, check the Netflix DevTools console for `[FlixRate 1.52]` messages. The detector reports which strategy succeeded or failed.
 
 ## Rating test
 
-Once the show/season/episode appears in the popup, FlixRate sends that exact combination to the background service worker, which queries OMDb for the individual episode. The popup star shows the resulting FlixRate color tier.
+Once the show/season/episode appears in the popup, FlixRate sends that exact combination to the background service worker, which queries OMDb for the individual episode. The popup star then shows the resulting FlixRate color tier.
