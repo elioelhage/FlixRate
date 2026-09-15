@@ -14,56 +14,27 @@ body { border-top: 3px solid #e50914; }
 .logo { width: 100%; height: 100%; display: block; object-fit: cover; }
 h1 { margin: 0; font-size: 22px; line-height: 1.1; letter-spacing: -.3px; }
 .brand p { margin: 5px 0 0; color: #9b9b9b; font-size: 12px; }
-.status-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 15px 14px;
-  border: 1px solid #292929;
-  background: #181818;
-  border-radius: 10px;
-}
+.status-card { display: flex; align-items: center; justify-content: space-between; padding: 15px 14px; border: 1px solid #292929; background: #181818; border-radius: 10px; }
 .status-title { display: block; font-size: 14px; font-weight: 700; }
 .status-text { display: block; margin-top: 3px; color: #9b9b9b; font-size: 12px; }
 .toggle { width: 50px; height: 28px; padding: 3px; border: 0; border-radius: 999px; background: #555; cursor: pointer; transition: background .18s ease; }
 .toggle-knob { display: block; width: 22px; height: 22px; border-radius: 50%; background: #fff; transform: translateX(0); transition: transform .18s ease; box-shadow: 0 1px 2px rgba(0,0,0,.45); }
 .toggle.on { background: #e50914; }
 .toggle.on .toggle-knob { transform: translateX(22px); }
-.episode-card {
-  margin-top: 14px;
-  padding: 15px;
-  border: 1px solid #292929;
-  background: #181818;
-  border-radius: 10px;
-}
+.episode-card { position: relative; margin-top: 14px; padding: 15px; min-height: 118px; border: 1px solid #292929; background: #181818; border-radius: 10px; }
 .episode-heading { display: flex; align-items: center; justify-content: space-between; }
-.section-label { color: #777; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
-.refresh { border: 0; background: transparent; color: #aaa; font-size: 11px; cursor: pointer; padding: 0; }
-.refresh:hover { color: #fff; }
-.episode-title { margin-top: 7px; font-size: 15px; font-weight: 700; line-height: 1.25; }
-.episode-meta { margin-top: 4px; color: #9b9b9b; font-size: 12px; line-height: 1.4; }
-.rating-wrap { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
-.rating-star {
-  width: 52px;
-  height: 52px;
-  flex: 0 0 52px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-}
-.rating-star svg { width: 28px; height: 28px; fill: #111; }
-.rating-label { font-size: 14px; font-weight: 700; }
-.rating-details { margin-top: 4px; color: #8d8d8d; font-size: 11px; }
-.error-text { margin-top: 12px; color: #ff9b9b; font-size: 11px; line-height: 1.4; }
+.section-label { color: #f5c518; font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+.episode-title { margin-top: 8px; padding-right: 64px; font-size: 15px; font-weight: 700; line-height: 1.3; }
+.episode-meta { margin-top: 5px; padding-right: 64px; color: #9b9b9b; font-size: 11px; line-height: 1.4; }
+.rating-star { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset; }
+.rating-star svg { width: 27px; height: 27px; fill: #111; }
+.rating-star--purple svg, .rating-star--dark-green svg, .rating-star--red svg, .rating-star--maroon svg { fill: #fff; }
+.rating-star--purple { background: #8e44ec; }
+.rating-star--dark-green { background: #1e6b30; }
+.rating-star--lime-green { background: #6fbf3c; }
+.rating-star--yellow { background: #f5c518; }
+.rating-star--orange { background: #e67e22; }
+.rating-star--red { background: #d7263d; }
+.rating-star--maroon { background: #5c2a1a; }
+.rating-star--unrated { background: #fff; }
 footer { margin-top: 14px; color: #666; font-size: 10px; text-align: center; }
-
-.rating-star[data-tier="purple"] { background: #8e44ec; }
-.rating-star[data-tier="dark-green"] { background: #1e6b30; }
-.rating-star[data-tier="lime-green"] { background: #6fbf3c; }
-.rating-star[data-tier="yellow"] { background: #f5c518; }
-.rating-star[data-tier="orange"] { background: #e67e22; }
-.rating-star[data-tier="red"] { background: #d7263d; }
-.rating-star[data-tier="maroon"] { background: #5c2a1a; }
-.rating-star[data-tier="unrated"] { background: #fff; }
