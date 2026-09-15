@@ -1,16 +1,17 @@
 # FlixRate
 
-IMDb episode ratings, directly in Netflix.
+IMDb episode ratings, directly in the FlixRate popup while watching Netflix.
 
-## Version 1.5
+## Version 1.51
 
-- Detects the current Netflix show, season, and episode.
-- Looks up the exact episode through OMDb using season/episode data.
-- Uses an IMDb-ID fallback when direct title matching fails.
-- Shows the rating as the FlixRate color star directly in the extension popup for testing.
-- Successful ratings are cached for 7 days; failed lookups expire after 2 minutes.
-- The in-player star is temporarily disabled while the rating pipeline is being tested.
+- Temporarily moved rating display entirely into the extension popup for reliable testing.
+- The popup directly inspects the active Netflix tab instead of relying only on stored/content-script episode detection.
+- Detection uses Netflix title nodes, player-neighborhood DOM, and compact visible-text fallbacks.
+- The popup identifies the current show, season, and episode, then requests that exact episode's IMDb data through OMDb.
+- Popup star changes color according to the FlixRate rating tiers.
+- Numerical rating and vote count are shown only as testing diagnostics.
+- Playback-skin injection is intentionally disabled as the next UI phase.
 
 ## Setup
 
-Create `config.js` from `config.example.js` and put your OMDb API key in it. `config.js` is gitignored.
+Keep `config.js` local with your OMDb key. It is gitignored.
