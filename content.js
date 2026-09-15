@@ -22,7 +22,7 @@
 
   const STAR_SVG = `
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-      <path d="M12 2.6l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.16l-5.7 3 1.09-6.35-2.85 5.78-6.38-.93 4.62-4.5-1.09-6.35 5.7 3z"/>
+      <path d="M12 2.6l2.85 5.78 6.38.93-4.62 4.5 1.09 6.35L12 17.16l-5.7 3 1.09-6.35-4.62-4.5 6.38-.93L12 2.6z"/>
     </svg>`;
 
   function log(...args) {
@@ -60,7 +60,6 @@
       .split(/\n+/)
       .map(cleanText)
       .filter(Boolean);
-
     if (!rawLines.length) return null;
 
     const combined = cleanText(rawLines.join(' '));
@@ -68,30 +67,23 @@
       || combined.match(/\bSeason\s*(\d{1,3})\s*[, -]+\s*Episode\s*(\d{1,3})\b/i);
 
     if (!match) {
-      log('could not parse season/episode from Netflix title:', combined);
+      log('could not parse season/episode from:', combined);
       return null;
     }
 
     const season = Number.parseInt(match[1], 10);
     const episode = Number.parseInt(match[2], 10);
+    let title = cleanText(rawLines[0]);
 
-    // Prefer the first visible line as the show title, stripping any accidental
-    // episode metadata if Netflix puts it on the same line.
-    let title = rawLines[0];
-    title = title.replace(/\bS(?:eason\s*)?\d{1,3}\s*[:\-]?\s*E(?:pisode\s*)?\d{1,3}\b/i, '').trim();
-    title = title.replace(/\bSeason\s*\d{1,3}\s*[, -]+\s*Episode\s*\d{1,3}\b/i, '').trim();
+    title = title
+      .replace(/\bS(?:eason\s*)?\d{1,3}\s*[:\-]?\s*E(?:pisode\s*)?\d{1,3}\b/i, '')
+      .replace(/\bSeason\s*\d{1,3}\s*[, -]+\s*Episode\s*\d{1,3}\b/i, '')
+      .trim();
 
-    if (!title) {
-      title = combined.slice(0, match.index).trim();
-    }
+    if (!title && match.index != null) title = cleanText(combined.slice(0, match.index));
     if (!title) return null;
 
-    return {
-      title,
-      season,
-      episode,
-      key: `${title}|${season}|${episode}`,
-    };
+    return { title, season, episode, key: `${title}|${season}|${episode}` };
   }
 
   function removeStar() {
@@ -99,16 +91,15 @@
     lastAnchor = null;
   }
 
-  function paintStar(star, tier, stateLabel = tier.label) {
+  function paintStar(star, tier, label = tier.label) {
     star.style.setProperty('--flixrate-color', tier.color);
     star.dataset.ratingState = tier.id;
-    star.title = `FlixRate — ${stateLabel}`;
-    star.setAttribute('aria-label', `FlixRate — ${stateLabel}`);
+    star.title = `FlixRate — ${label}`;
+    star.setAttribute('aria-label', `FlixRate — ${label}`);
   }
 
   function createStar(anchor) {
     removeStar();
-
     const star = document.createElement('button');
     star.id = STAR_ID;
     star.className = 'flixrate-star';
@@ -117,13 +108,8 @@
     star.innerHTML = STAR_SVG;
     paintStar(star, FlixRateRatings.UNRATED);
 
-    star.addEventListener('click', () => {
-      chrome.runtime.sendMessage({ type: 'FLIXRATE_OPEN_POPUP' }).catch(() => {});
-    });
-
     const parent = anchor.parentElement;
     if (!parent) return null;
-
     parent.insertBefore(star, anchor.nextSibling);
     lastAnchor = anchor;
     return star;
@@ -132,13 +118,12 @@
   async function refreshRatingIfNeeded() {
     const info = readCurrentTitle();
     const star = document.getElementById(STAR_ID);
-    if (!info || !star) return;
-    if (info.key === lastKey) return;
+    if (!info || !star || info.key === lastKey) return;
 
     lastKey = info.key;
     const token = ++requestToken;
     paintStar(star, FlixRateRatings.UNRATED, 'Loading rating…');
-    log('fetching', info);
+    log('requesting rating for', info);
 
     try {
       const data = await chrome.runtime.sendMessage({
@@ -152,12 +137,12 @@
 
       const tier = FlixRateRatings.getTier(data?.rating ?? null, data?.votes ?? 0);
       paintStar(currentStar, tier);
-      log('rating response', data, '→', tier.id);
+      log('received', info, data, '→', tier.id);
     } catch (error) {
       if (token !== requestToken) return;
       const currentStar = document.getElementById(STAR_ID);
       if (currentStar) paintStar(currentStar, FlixRateRatings.UNRATED, 'Rating unavailable');
-      log('rating fetch failed:', error);
+      log('request failed:', error);
     }
   }
 
@@ -172,10 +157,9 @@
 
     const current = document.getElementById(STAR_ID);
     if (!current || lastAnchor !== anchor || !anchor.parentElement?.contains(current)) {
-      const created = createStar(anchor);
-      if (created) {
+      if (createStar(anchor)) {
         lastKey = null;
-        log('star injected');
+        log('star injected next to player control');
       }
     }
 
@@ -188,7 +172,6 @@
       observer.observe(document.documentElement, { childList: true, subtree: true });
     }
     syncStar();
-
     if (!intervalId) intervalId = window.setInterval(syncStar, 1000);
   }
 
