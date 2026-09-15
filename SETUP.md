@@ -1,26 +1,27 @@
-# FlixRate setup
+# FlixRate 1.51 setup
 
 ## OMDb key
 
-1. Get a free OMDb API key from https://www.omdbapi.com/apikey.aspx.
-2. Copy `config.example.js` to `config.js`.
-3. Put your key in `config.js`.
-4. Keep `config.js` local; it is gitignored.
+1. Get an OMDb API key.
+2. Keep the key in local `config.js`.
+3. `config.js` is gitignored and must never be committed to the public repository.
 
 ## Chrome
 
 1. Open `chrome://extensions`.
 2. Enable Developer mode.
 3. Click **Load unpacked** and select the FlixRate folder.
-4. Reload Netflix and start an episode.
-5. Open the FlixRate popup. It should detect the current show, season, and episode, then fetch the specific episode rating.
+4. Reload Netflix.
+5. Start an episode and open the FlixRate toolbar popup.
 
-## v1.5 troubleshooting
+## v1.51 detection test
 
-If the popup says it cannot reach Netflix, reload the Netflix tab once after updating the extension.
+The popup now directly inspects the active Netflix tab with the extension's `scripting` permission. It does not depend on Netflix's URL containing the episode number.
 
-If the popup detects the episode but shows `Missing OMDb API key`, make sure your local `config.js` exists beside `background.js`.
+The detector checks multiple DOM locations for `Sx:Ey` / `Season x Episode y`, then derives the nearby show title. The content script also runs the same style of multi-strategy detection in the background so Netflix SPA changes are continuously observed.
 
-If the popup detects the wrong show or episode, open the Netflix DevTools console and look for `[FlixRate] Current episode detected:`. The parsed title/season/episode is shown there.
+If the popup says **Episode not detected**, the Netflix player markup has changed enough that another DOM strategy is needed.
 
-A successful result shows the numeric IMDb rating and vote count for testing, while the large FlixRate star uses only the configured color tier.
+## Rating test
+
+Once the show/season/episode appears in the popup, FlixRate sends that exact combination to the background service worker, which queries OMDb for the individual episode. The popup star shows the resulting FlixRate color tier.
