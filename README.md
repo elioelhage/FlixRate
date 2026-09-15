@@ -2,12 +2,18 @@
 
 IMDb episode ratings, directly in Netflix.
 
-## Version 1.1
+## Version 1.4
 
-- Extension popup with persistent on/off toggle
-- Version shown in popup footer
-- Netflix playback star injected beside the native volume control
-- MutationObserver + periodic re-check for Netflix player re-renders
-- White star state used until IMDb episode data is connected
+- Reads the current show, season, and episode from Netflix's playback title.
+- Fetches the individual episode through OMDb, which exposes IMDb rating data and supports season/episode queries. citeturn166487search0
+- If a direct title lookup fails, resolves the show's IMDb ID first and retries the episode lookup by IMDb ID.
+- Successful ratings are cached for 7 days.
+- Failed lookups are cached for only 2 minutes, preventing stale white-star results while troubleshooting.
+- The star remains white when there are fewer than 400 IMDb votes or no usable rating data.
+- Netflix playback integration continues to use the native volume-control area.
 
-IMDb fetching and rating-color mapping will be connected in the next implementation step.
+## Setup
+
+See `SETUP.md` and create a local `config.js` from `config.example.js` with your OMDb API key.
+
+`config.js` is gitignored and is never committed to the public repository.
