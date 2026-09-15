@@ -1,18 +1,40 @@
-.flixrate-star {
-  width: 38px;
-  height: 38px;
-  margin: 0 6px;
-  padding: 8px;
-  border: 0;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #fff;
-  cursor: pointer;
-  opacity: .98;
-  box-sizing: border-box;
+#flixrate-star {
+  width: 38px !important;
+  height: 38px !important;
+  min-width: 38px !important;
+  min-height: 38px !important;
+  margin: 0 6px !important;
+  padding: 8px !important;
+  border: 0 !important;
+  border-radius: 50% !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  background: #fff !important;
+  color: #111 !important;
+  cursor: pointer !important;
+  opacity: 0.9;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  flex: 0 0 auto !important;
+  z-index: 10 !important;
 }
 
-.flixrate-star svg { width: 22px; height: 22px; fill: #111; }
-.flixrate-star:hover { filter: brightness(1.08); }
+#flixrate-star svg {
+  width: 22px !important;
+  height: 22px !important;
+  display: block !important;
+  fill: currentColor !important;
+}
+
+#flixrate-star:hover,
+#flixrate-star:focus-visible {
+  opacity: 1 !important;
+  filter: brightness(1.08);
+}
+
+#flixrate-star:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.9) !important;
+  outline-offset: 2px !important;
+}
