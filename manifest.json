@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "FlixRate",
-  "version": "1.51.0",
+  "version": "1.52.0",
   "description": "See IMDb episode ratings directly in the FlixRate popup while watching Netflix.",
-  "permissions": ["storage", "tabs", "scripting"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["https://www.netflix.com/*", "https://www.omdbapi.com/*"],
   "background": { "service_worker": "background.js" },
   "action": { "default_popup": "popup.html", "default_title": "FlixRate" },
